@@ -18,6 +18,9 @@ pb_bar_count = 1
 screen_dirty = false
 
 x_fade = 0
+adc_fade = math.cos( (x_fade) * math.pi/2 )
+softcut_fade = math.cos( (1 - x_fade) * math.pi/2 )
+
 beat_string = " - - - +"
 
 function init()
@@ -33,7 +36,7 @@ function init()
         action = function(t) 
             pb_bar_count = util.wrap(pb_bar_count+1,1,rec_bar_count)
             if pb_ba_count == 1 then
-              softcut.position(1,1)
+              --softcut.position(1,1)
             end
             --print("pb"..pb_bar_count)
             if is_recording then
@@ -128,16 +131,18 @@ end
 function rec()
     start_rec = util.time()
     is_recording = true
-    softcut.buffer_clear()
-    softcut.loop_start(1,1)
+    --softcut.buffer_clear()
+    --softcut.loop_start(1,1)
     softcut.loop_end(1,241)
     softcut.position(1,1)
-    softcut.level(1,0.0)
+    --softcut.level(1,0.0)
     softcut.rec(1,1)
     softcut.rec_level(1,1)
-    audio.level_adc_cut(1)
-    softcut.level_input_cut(1,1,0.5)
-    softcut.level_input_cut(2,1,0.5)
+    --audio.level_adc_cut(adc_fade)
+    --softcut.level_cut_cut(1,1,1)
+    softcut.level_input_cut(1,1,adc_fade)
+    softcut.level_input_cut(2,1,adc_fade)
+    softcut.pre_level(1,softcut_fade)
     arm_rec = false
 end
 
@@ -147,7 +152,7 @@ function stop_rec()
     softcut.rec(1,0)
     loop_end = (end_rec - start_rec)
     --print(loop_end)
-    softcut.position(1,1)
+    --softcut.position(1,1)
     softcut.loop_end(1,1+loop_end)
     arm_stop_rec = false
 end
