@@ -17,12 +17,12 @@ pb_bar_count = 1
 
 screen_dirty = false
 
-x_fade = -1
+x_fade = 0
 beat_string = " - - - +"
 
 function init()
 
-    crow.output[3].action = "{to(5,0),to(0,0.005)}" 
+    crow.output[3].action = "{ to(5,0), to(5,0.01), to(0,0) }"
 
     softcut.level(1,x_fade)
     audio.level_monitor(1-x_fade)
@@ -115,7 +115,7 @@ function redraw()
         screen.text_center("P L A Y")
     end
 
-    screen.move((0.5+(x_fade/2))*123,64)
+    screen.move((x_fade)*123,64)
     screen.text("^")
 
     screen.font_size(16)
@@ -126,12 +126,12 @@ function redraw()
 end
 
 function rec()
+    start_rec = util.time()
     is_recording = true
     softcut.buffer_clear()
     softcut.loop_start(1,1)
     softcut.loop_end(1,241)
     softcut.position(1,1)
-    start_rec = util.time()
     softcut.level(1,0.0)
     softcut.rec(1,1)
     softcut.rec_level(1,1)
@@ -146,7 +146,7 @@ function stop_rec()
     end_rec = util.time()  
     softcut.rec(1,0)
     loop_end = (end_rec - start_rec)
-    print(loop_end)
+    --print(loop_end)
     softcut.position(1,1)
     softcut.loop_end(1,1+loop_end)
     arm_stop_rec = false
@@ -170,12 +170,12 @@ end
 
 function enc(e,d)
     if e == 2 then
-        x_fade = util.clamp(x_fade + d / 100,-1,1)
-        if x_fade > 0 then softcut_fade = 1 else softcut_fade = 1 + x_fade end
-        if x_fade < 0 then adc_fade = 1 else adc_fade =  1 - x_fade end
-        softcut.level(1,softcut_fade)
+        x_fade = util.clamp(x_fade + d / 100,0,1)
+        adc_fade = math.cos( (x_fade) * math.pi/2 )
+        softcut_fade = math.cos( (1 - x_fade) * math.pi/2 )
         audio.level_monitor(adc_fade)
-        print("xfade: " .. x_fade .. " softcut: ".. softcut_fade .. " adc: "..adc_fade)
+        softcut.level(1,softcut_fade)
+        --print("xfade: " .. x_fade .. " softcut: ".. softcut_fade .. " adc: "..adc_fade)
     end
     screen_dirty = true
 end
