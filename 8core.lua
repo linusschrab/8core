@@ -1,8 +1,10 @@
 lattice = require("lattice")
 
-loop_end = 0
-start_rec = 0
-end_rec = 0
+m = midi.connect(3)
+
+--loop_end = 0
+--start_rec = 0
+--end_rec = 0
 
 sc_rec_voice = 1
 sc_pb_voice = 2
@@ -16,7 +18,8 @@ reset_clock = true
 clock_count = 5
 
 rec_bar_count = 0
-pb_bar_count = 1
+play_bar_count = 1
+play_iter_count = 0
 
 screen_dirty = false
 
@@ -37,6 +40,13 @@ function init()
 
     pattern_a = my_lattice:new_pattern {
         action = function(t) 
+            play_iter_count = play_iter_count + 1
+            if play_iter_count >= play_bar_count then
+                --softcut.position(sc_pb_voice,1)   
+                play_iter_count = 0
+                m:continue()
+                --print("reset loop")
+            end       
             --pb_bar_count = util.wrap(pb_bar_count+1,1,rec_bar_count)
             --if pb_ba_count == 1 then
               --softcut.position(1,1)
@@ -49,6 +59,7 @@ function init()
             if reset_clock then
                 crow.output[3]()
                 reset_clock = false
+                m:start()
             end
             if arm_rec then
                 --rec_bar_count = 0
@@ -56,9 +67,15 @@ function init()
                 arm_rec = false
             end
             if arm_stop_rec and is_recording then
-                stop_rec()
+                stop_rec(rec_bar_count)
                 arm_stop_rec = false
-            end    
+                play_bar_count = rec_bar_count
+                rec_bar_count = 0
+            end   
+            if is_recording then
+                rec_bar_count = rec_bar_count + 1
+                print(rec_bar_count)
+            end 
             screen_dirty = true
         end,
         division = 1,
@@ -82,14 +99,14 @@ function init()
     softcut.level(1,0.0)
     softcut.loop(1,1)
     softcut.play(1,1)
-    softcut.fade_time(1,0.01)    
+    softcut.fade_time(1,0.00)    
     
     softcut.enable(2,1)
     softcut.buffer(2,2)
     softcut.level(2,0.0)
     softcut.loop(2,1)
     softcut.play(2,1)
-    softcut.fade_time(2,0.01)
+    softcut.fade_time(2,0.00)
 
     softcut.rec(sc_rec_voice,0)
     softcut.level(sc_rec_voice,0)
@@ -131,6 +148,9 @@ function redraw()
         screen.text_center("reset clock in "..clock_count)
     end
 
+    screen.move(64,14)
+        screen.text_center(play_iter_count+1 .. " / " .. play_bar_count)
+
     screen.move(64,44)
     if is_recording then
         screen.text_center("R E C")
@@ -156,13 +176,15 @@ function rec()
     is_recording = true
 
     softcut.buffer_clear_channel(sc_rec_voice)
-    softcut.position(sc_rec_voice,1) -- position rec_buffer at 1
+    softcut.position(sc_rec_voice,1) 
+    softcut.play(sc_rec_voice,1) 
+    -- position rec_buffer at 1
     --softcut.position(sc_pb_voice,1)
     --softcut.level(1,0.0)
     softcut.rec_level(sc_rec_voice,1)
     audio.level_adc_cut(adc_fade)
-    softcut.level_input_cut(1,sc_rec_voice,adc_fade/2)
-    softcut.level_input_cut(2,sc_rec_voice,adc_fade/2)
+    softcut.level_input_cut(1,sc_rec_voice,math.sqrt(adc_fade/2))
+    softcut.level_input_cut(2,sc_rec_voice,math.sqrt(adc_fade/2))
     --softcut.pre_level(1,softcut_fade)
     softcut.level_cut_cut(sc_pb_voice,sc_rec_voice,softcut_fade)
 
@@ -171,7 +193,7 @@ function rec()
     --softcut.position(sc_pb_voice,1)
 end
 
-function stop_rec()
+function stop_rec(loop_len)
     print("stop")
     is_recording = false
     end_rec = util.time()  
@@ -179,21 +201,23 @@ function stop_rec()
     sc_rec_voice = util.wrap(sc_rec_voice+1,1,2)
     sc_pb_voice = util.wrap(sc_pb_voice+1,1,2)
 
-    softcut.rec(sc_rec_voice,0)
     softcut.level(sc_rec_voice,0)
     softcut.level(sc_pb_voice,softcut_fade)
 
     softcut.rec(sc_rec_voice,1)
     softcut.rec(sc_pb_voice,0)
     
-    softcut.loop_start(sc_rec_voice,1)
-    softcut.loop_start(sc_pb_voice,1)
+    --softcut.loop_start(sc_rec_voice,1)
+    --softcut.loop_start(sc_pb_voice,1)
     softcut.loop_end(sc_rec_voice,241)
-    loop_end = (end_rec - start_rec)
+    --loop_end = (end_rec - start_rec)
+    
     --print(loop_end)
-    softcut.position(sc_pb_voice,1)
-    softcut.position(sc_rec_voice,1)
-    softcut.loop_end(sc_pb_voice,1+loop_end)
+    --softcut.position(sc_pb_voice,1)
+    --softcut.position(sc_rec_voice,1)
+    --softcut.loop_end(sc_pb_voice,1+loop_end)
+    print("loop len: " .. sc_pb_voice,clock.get_beat_sec()*loop_len*4)
+    softcut.loop_end(sc_pb_voice,1+clock.get_beat_sec()*loop_len*4)
     --softcut.loop_end(sc_rec_voice,1+loop_end)
 end
 
